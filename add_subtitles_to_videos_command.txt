@@ -1,0 +1,1 @@
+ffmpeg -i /home/timo/Documents/la-voie-de-la-savane/saison-1/videos/ep-1.mp4 -vf "ass=/home/timo/Documents/la-voie-de-la-savane/saison-1/transcriptions/ep-1.ass" -c:a copy /home/timo/Documents/la-voie-de-la-savane/saison-1/videos/ep-1-subtitles.mp4

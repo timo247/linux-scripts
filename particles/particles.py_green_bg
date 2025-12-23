@@ -1,0 +1,88 @@
+import pygame
+import random
+
+# =========================
+# PARAMÈTRES MODIFIABLES
+# =========================
+
+WIDTH, HEIGHT = 1920, 1080
+FPS = 60
+NUM_PARTICLES = 45
+
+BACKGROUND_COLOR = (176, 242, 182)     # couleur du fond
+PARTICLE_COLOR = (31, 160, 85)      # couleur principale
+
+MIN_RADIUS = 2                      # taille minimale
+MAX_RADIUS = 14                  # taille maximale
+
+PARTICLE_SPEED = 1               # vitesse de déplacement
+
+# =========================
+# INITIALISATION
+# =========================
+
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Particules - tailles variables")
+clock = pygame.time.Clock()
+
+# =========================
+# CLASSE PARTICULE
+# =========================
+
+class Particle:
+    def __init__(self):
+        self.x = random.uniform(0, WIDTH)
+        self.y = random.uniform(0, HEIGHT)
+        self.vx = random.uniform(-PARTICLE_SPEED, PARTICLE_SPEED)
+        self.vy = random.uniform(-PARTICLE_SPEED, PARTICLE_SPEED)
+
+        # taille aléatoire par particule
+        self.radius = random.randint(MIN_RADIUS, MAX_RADIUS)
+
+    def update(self):
+        self.x += self.vx
+        self.y += self.vy
+
+        # rebond sur les bords
+        if self.x < self.radius or self.x > WIDTH - self.radius:
+            self.vx *= -1
+        if self.y < self.radius or self.y > HEIGHT - self.radius:
+            self.vy *= -1
+
+    def draw(self, surface):
+        pygame.draw.circle(
+            surface,
+            PARTICLE_COLOR,
+            (int(self.x), int(self.y)),
+            self.radius
+        )
+
+# =========================
+# CRÉATION DES PARTICULES
+# =========================
+
+particles = [Particle() for _ in range(NUM_PARTICLES)]
+
+# =========================
+# BOUCLE PRINCIPALE
+# =========================
+
+running = True
+while running:
+    clock.tick(FPS)
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    screen.fill(BACKGROUND_COLOR)
+
+    for p in particles:
+        p.update()
+        p.draw(screen)
+
+    pygame.display.flip()
+
+pygame.quit()
+

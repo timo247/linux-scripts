@@ -1,0 +1,5 @@
+ffmpeg -framerate 60 -i frames/frame_%04d.png \
+-c:v libvpx-vp9 -pix_fmt yuva420p \
+-preset slow -crf 15 \
+particles.webm
+
