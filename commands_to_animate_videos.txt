@@ -1,30 +1,9 @@
-ffmpeg -i  /home/timo/Documents/la-voie-de-la-savane/saison-1/videos/ep-1-subtitles.mp4 -i ../Documents/la-voie-de-la-savane/background-videos/ \
--filter_complex "overlay=0:0" \
--c:v libx264 -pix_fmt yuv420p \
-/home/timo/Documents/la-voie-de-la-savane/saison-1/videos/ep1-finalized.mp4
+Generate ass file from srt file:
 
+python3 srt-to-ass.py /home/timo/Documents/la-voie-de-la-savane/saison-1/transcriptions/ep-10.srt /home/timo/Documents/la-voie-de-la-savane/saison-1/transcriptions/ep-10.ass
 
-ffmpeg -i ../Documents/la-voie-de-la-savane/background-videos/circular-particles.mp4 -i ../Documents/la-voie-de-la-savane/background-videos/circular-particles_black.mp4 \
--filter_complex "[1:v]lumakey=0:0.1:0.1[lk];[0:v][lk]overlay" \
-output.mp4
+Generate video with subtitles:
 
+ffmpeg -i /home/timo/Documents/la-voie-de-la-savane/saison-1/videos/ep-10-animated.mp4 -vf "ass=/home/timo/Documents/la-voie-de-la-savane/saison-1/transcriptions/ep-10.ass" -c:a copy /home/timo/Documents/la-voie-de-la-savane/saison-1/videos/ep-10-subtitles.mp4
 
-ffmpeg \
--i ../Documents/la-voie-de-la-savane/background-videos/circular-particles.mp4 \
--i /home/timo/Documents/la-voie-de-la-savane/saison-1/videos/ep-1-subtitles.mp4 \
--filter_complex "[1:v]lumakey=0:0.1:0.1[part];[0:v][part]overlay" \
-/home/timo/Documents/la-voie-de-la-savane/saison-1/videos/ep1-finalized.mp4
-
-
-ffmpeg -f lavfi -i color=c=red:s=1920x1080 -i circular-particles.mp4 -filter_complex "
-[1:v]format=rgba,colorchannelmixer=aa=0.5[vid];
-[0:v][vid]overlay
-" -c:v libx264 test_alpha_visible.mp4
-
-
-*** superposer une vidéos finalisée avec une vidéos d'animation ***
-ffmpeg -i ../saison-1/videos/ep1-finalized.mp4 -i circular-particles.mp4 -filter_complex "
-[1:v]format=rgba,colorchannelmixer=aa=0.5[particles];
-[0:v][particles]overlay
-" -c:v libx264 -pix_fmt yuv420p output_final.mp4
 
