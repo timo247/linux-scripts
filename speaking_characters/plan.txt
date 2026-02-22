@@ -1,0 +1,19 @@
+SRT
+↓
+Parser Python
+↓
+Bloc texte + temps exact
+↓
+Mapping visèmes
+↓
+Timeline globale JSON
+↓
+FFmpeg filter_complex dynamique
+
+
+
+
+Commands:
+
+srt to bloc texte + temps exact:
+python srt_to_visemes.py  episodes-srt/ep-X.srt episodes-visemes-mapping/episode-X.json

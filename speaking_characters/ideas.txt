@@ -1,0 +1,1 @@
+Entrainer un modèle qui corrige les fichiers srt automatiquement

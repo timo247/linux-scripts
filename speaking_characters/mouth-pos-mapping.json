@@ -1,0 +1,7 @@
+{
+  "A": "mouth_open.png",
+  "O": "mouth_round.png",
+  "M": "mouth_closed.png",
+  "F": "mouth_teeth.png",
+  "default": "mouth_neutral.png"
+}

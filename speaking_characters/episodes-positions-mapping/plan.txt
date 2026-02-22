@@ -1,0 +1,18 @@
+SRT
+↓
+Parser Python
+↓
+Bloc texte + temps exact
+↓
+Mapping visèmes
+↓
+Timeline globale JSON
+↓
+FFmpeg filter_complex dynamique
+
+
+
+
+
+STEP 1:
+python srt_to_visemes.py input.srt output.json
