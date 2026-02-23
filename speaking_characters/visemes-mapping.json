@@ -1,14 +1,14 @@
 {
   "rules": [
     {"pattern": "ou", "viseme": "OU"},
-    {"pattern": "eau", "viseme": "O"},
-    {"pattern": "au", "viseme": "O"},
-    {"pattern": "o", "viseme": "O"},
-    {"pattern": "ai|ei|é|è|ê|eu", "viseme": "E"},
-    {"pattern": "i|y", "viseme": "I"},
-    {"pattern": "a", "viseme": "A"},
-    {"pattern": "m|b|p", "viseme": "M"},
-    {"pattern": "f|v", "viseme": "F"}
+    {"pattern": "eau|au", "viseme": "O"},
+    {"pattern": "[oô]", "viseme": "O"},
+    {"pattern": "[uùûü]", "viseme": "U"},
+    {"pattern": "(ai|ei|é|è|ê|eu|œ)", "viseme": "E"},
+    {"pattern": "[iyîïÿ]", "viseme": "I"},
+    {"pattern": "[aàâ]", "viseme": "A"},
+    {"pattern": "[fv]", "viseme": "F"},
+    {"pattern": "[bcdfghjklmnpqrstvwxz]", "viseme": "NEUTRAL"}
   ],
   "default": "NEUTRAL"
 }

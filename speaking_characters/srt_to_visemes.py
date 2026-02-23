@@ -4,8 +4,8 @@ import re
 import json
 import argparse
 from pathlib import Path
-from dataclasses import dataclass, asdict
-from typing import List
+from dataclasses import dataclass
+from typing import List, Tuple
 
 
 # --------------------------------------------------
@@ -30,20 +30,24 @@ class VisemeEvent:
 # CONFIGURATION
 # --------------------------------------------------
 
-VISEME_RULES = [
-    (r"ou", "OU"),
-    (r"eau", "O"),
-    (r"au", "O"),
-    (r"[oô]", "O"),
-    (r"(ai|ei|é|è|ê|eu|œ)", "E"),
-    (r"[iyîï]", "I"),
-    (r"[aàâ]", "A"),
-    (r"[mbp]", "M"),
-    (r"[fv]", "F"),
-]
-
-DEFAULT_VISEME = "NEUTRAL"
 MIN_DURATION = 0.05  # sécurité anti micro-visèmes
+
+
+# --------------------------------------------------
+# LOAD VISEME RULES FROM JSON
+# --------------------------------------------------
+
+def load_viseme_rules(path: str) -> Tuple[List[Tuple[re.Pattern, str]], str]:
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+
+    compiled_rules = [
+        (re.compile(rule["pattern"]), rule["viseme"])
+        for rule in data["rules"]
+    ]
+
+    default_viseme = data.get("default", "NEUTRAL")
+
+    return compiled_rules, default_viseme
 
 
 # --------------------------------------------------
@@ -53,12 +57,7 @@ MIN_DURATION = 0.05  # sécurité anti micro-visèmes
 def srt_time_to_seconds(time_str: str) -> float:
     h, m, s_ms = time_str.split(":")
     s, ms = s_ms.split(",")
-    return (
-        int(h) * 3600 +
-        int(m) * 60 +
-        int(s) +
-        int(ms) / 1000
-    )
+    return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000
 
 
 def parse_srt(path: str) -> List[SubtitleBlock]:
@@ -86,7 +85,7 @@ def parse_srt(path: str) -> List[SubtitleBlock]:
 # TEXT → VISEMES
 # --------------------------------------------------
 
-def text_to_visemes(text: str) -> List[str]:
+def text_to_visemes(text: str, rules, default_viseme) -> List[str]:
     text = text.lower()
     visemes = []
     i = 0
@@ -94,9 +93,8 @@ def text_to_visemes(text: str) -> List[str]:
     while i < len(text):
         matched = False
 
-        for pattern, viseme in VISEME_RULES:
-            regex = re.compile(pattern)
-            match = regex.match(text, i)
+        for pattern, viseme in rules:
+            match = pattern.match(text, i)
             if match:
                 visemes.append(viseme)
                 i += len(match.group())
@@ -105,7 +103,7 @@ def text_to_visemes(text: str) -> List[str]:
 
         if not matched:
             if text[i].isalpha():
-                visemes.append(DEFAULT_VISEME)
+                visemes.append(default_viseme)
             i += 1
 
     return visemes
@@ -115,11 +113,11 @@ def text_to_visemes(text: str) -> List[str]:
 # TIMELINE GENERATION
 # --------------------------------------------------
 
-def generate_timeline(subtitles: List[SubtitleBlock]) -> List[VisemeEvent]:
+def generate_timeline(subtitles: List[SubtitleBlock], rules, default_viseme) -> List[VisemeEvent]:
     timeline = []
 
     for sub in subtitles:
-        visemes = text_to_visemes(sub.text)
+        visemes = text_to_visemes(sub.text, rules, default_viseme)
 
         if not visemes:
             continue
@@ -164,11 +162,13 @@ def main():
     parser = argparse.ArgumentParser(description="Convert SRT to viseme timeline JSON")
     parser.add_argument("input_srt", help="Input SRT file")
     parser.add_argument("output_json", help="Output JSON file")
+    parser.add_argument("viseme_config", help="Viseme JSON config file")
 
     args = parser.parse_args()
 
+    rules, default_viseme = load_viseme_rules(args.viseme_config)
     subtitles = parse_srt(args.input_srt)
-    timeline = generate_timeline(subtitles)
+    timeline = generate_timeline(subtitles, rules, default_viseme)
 
     output = [
         {

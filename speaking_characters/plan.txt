@@ -16,4 +16,9 @@ FFmpeg filter_complex dynamique
 Commands:
 
 srt to bloc texte + temps exact:
-python srt_to_visemes.py  episodes-srt/ep-X.srt episodes-visemes-mapping/episode-X.json
+python srt_to_visemes.py episodes/srt/episode-1.srt episodes/visemes-timeline/episode-1.json visemes-mapping.json
+
+TO DO
+Scaler les bouches pour arraignées,
+ajouter I
+
