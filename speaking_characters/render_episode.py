@@ -1,24 +1,13 @@
 import os
 import json
-import math
+import shutil
 import subprocess
+import argparse
 from pathlib import Path
 from PIL import Image
 
-# ======================
-# CONFIG
-# ======================
-
-EPISODE = "episode-1"
 FPS = 25
 
-BASE_IMAGE_PATH = f"episodes/images/{EPISODE}.png"
-TIMELINE_PATH = f"episodes/visemes-timeline/{EPISODE}.json"
-POSITION_PATH = f"episodes/positions-mapping/{EPISODE}.json"
-AUDIO_PATH = f"episodes/audios/{EPISODE}.mp3"
-MOUTHS_DIR = "characters/araignee/mouths"
-OUTPUT_VIDEO = f"episodes/{EPISODE}.mp4"
-FRAMES_DIR = f"tmp_frames_{EPISODE}"
 
 # ======================
 # UTILS
@@ -28,27 +17,43 @@ def load_json(path):
     with open(path, "r") as f:
         return json.load(f)
 
+
 def get_total_duration(timeline):
     return max(segment["end"] for segment in timeline)
+
 
 def time_to_frame(t):
     return int(t * FPS)
 
+
 def ensure_dir(path):
     os.makedirs(path, exist_ok=True)
 
-def load_mouth_image(viseme):
+
+def load_mouth_image(viseme, mouths_dir):
     filename = f"{viseme}.png"
-    path = os.path.join(MOUTHS_DIR, filename)
+    path = os.path.join(mouths_dir, filename)
+
     if not os.path.exists(path):
         raise ValueError(f"Viseme image not found: {path}")
+
     return Image.open(path).convert("RGBA")
+
 
 # ======================
 # MAIN RENDER
 # ======================
 
-def render():
+def render(episode):
+
+    BASE_IMAGE_PATH = f"episodes/images/{episode}.png"
+    TIMELINE_PATH = f"episodes/visemes-timeline/{episode}.json"
+    POSITION_PATH = f"episodes/positions-mapping/{episode}.json"
+    AUDIO_PATH = f"episodes/audios/{episode}.mp3"
+
+    OUTPUT_DIR = "episodes/videos"
+    OUTPUT_VIDEO = f"{OUTPUT_DIR}/{episode}.mp4"
+    FRAMES_DIR = f"tmp_frames_{episode}"
 
     print("Loading data...")
 
@@ -64,27 +69,41 @@ def render():
     print(f"Total frames: {total_frames}")
 
     ensure_dir(FRAMES_DIR)
+    ensure_dir(OUTPUT_DIR)
 
-    # Preload mouth images cache
+    emotion_1 = position.get("emotion_1", "HAPPY")
+    emotion_2 = position.get("emotion_2", emotion_1)
+    transition_time = position.get("emotion_transition_time", float("inf"))
+
     mouth_cache = {}
 
     for frame_number in range(total_frames):
 
         current_time = frame_number / FPS
 
+        # Emotion selection
+        if current_time < transition_time:
+            current_emotion = emotion_1
+        else:
+            current_emotion = emotion_2
+
+        mouths_dir = f"characters/lion/mouths/{current_emotion}"
+
         # Find active viseme
-        current_viseme = "NEUTRAL"
+        current_viseme = "CLOSED"
+
         for segment in timeline:
             if segment["start"] <= current_time < segment["end"]:
                 current_viseme = segment["viseme"]
                 break
 
-        if current_viseme not in mouth_cache:
-            mouth_cache[current_viseme] = load_mouth_image(current_viseme)
+        cache_key = f"{current_emotion}_{current_viseme}"
 
-        mouth_img = mouth_cache[current_viseme]
+        if cache_key not in mouth_cache:
+            mouth_cache[cache_key] = load_mouth_image(current_viseme, mouths_dir)
 
-        # Apply transformations
+        mouth_img = mouth_cache[cache_key]
+
         transformed = mouth_img.copy()
 
         # Scale
@@ -99,12 +118,14 @@ def render():
         rotation = position.get("rotation", 0)
         transformed = transformed.rotate(rotation, expand=True)
 
-        # Composite frame
+        # Composite
         frame = base_image.copy()
 
         x = int(position["x"])
         y = int(position["y"])
 
+        x = int(position["x"] - transformed.width / 2)
+        y = int(position["y"] - transformed.height / 2)
         frame.paste(transformed, (x, y), transformed)
 
         frame_path = os.path.join(FRAMES_DIR, f"frame_{frame_number:05d}.png")
@@ -138,7 +159,22 @@ def render():
 
     print(f"Video generated: {OUTPUT_VIDEO}")
 
+    # ======================
+    # CLEANUP
+    # ======================
+
+    print("Cleaning temporary frames...")
+    shutil.rmtree(FRAMES_DIR)
+
+    print("Done.")
+
+
 # ======================
 
 if __name__ == "__main__":
-    render()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--episode", required=True)
+    args = parser.parse_args()
+
+    render(args.episode)

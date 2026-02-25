@@ -1,14 +1,23 @@
 {
   "rules": [
-    {"pattern": "ou", "viseme": "OU"},
-    {"pattern": "eau|au", "viseme": "O"},
-    {"pattern": "[oô]", "viseme": "O"},
-    {"pattern": "[uùûü]", "viseme": "U"},
-    {"pattern": "(ai|ei|é|è|ê|eu|œ)", "viseme": "E"},
-    {"pattern": "[iyîïÿ]", "viseme": "I"},
-    {"pattern": "[aàâ]", "viseme": "A"},
-    {"pattern": "[fv]", "viseme": "F"},
-    {"pattern": "[bcdfghjklmnpqrstvwxz]", "viseme": "NEUTRAL"}
+    { "pattern": "\\s+", "viseme": "CLOSED" },
+
+    { "pattern": "ou", "viseme": "O" },
+    { "pattern": "eau|au", "viseme": "O" },
+    { "pattern": "[oô]", "viseme": "O" },
+
+    { "pattern": "(ai|ei|é|è|ê|ë|eu|œ|er|ez)", "viseme": "E" },
+    { "pattern": "[iyîïÿ]", "viseme": "E" },
+    { "pattern": "[uùûüe]", "viseme": "E" },
+
+    { "pattern": "(an|am|en|em|on|om|in|im|ain|ein|un)", "viseme": "A" },
+    { "pattern": "[aàâ]", "viseme": "A" },
+
+    { "pattern": "[fv]", "viseme": "F" },
+
+    { "pattern": "l", "viseme": "L" },
+
+    { "pattern": "[bcdfghjkmnpqrstvwxz]", "viseme": "CONS" }
   ],
-  "default": "NEUTRAL"
+  "default": "CLOSED"
 }

@@ -18,7 +18,10 @@ Commands:
 srt to bloc texte + temps exact:
 python srt_to_visemes.py episodes/srt/episode-1.srt episodes/visemes-timeline/episode-1.json visemes-mapping.json
 
-TO DO
-Scaler les bouches pour arraignées,
-ajouter I
+génération de la vidéo avec les personnages qui parlent:
+python render_episode.py --episode episode-test-mouth-lion
 
+TO DO
+Corriger le problème d'offset
+Faire reposer le renderer sur le fichier ass de whisper.
+chercher une logique d'identification des personnages qui parlent (whisper ?)
