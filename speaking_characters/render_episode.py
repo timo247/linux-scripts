@@ -5,6 +5,7 @@ import subprocess
 import argparse
 from pathlib import Path
 from PIL import Image
+from PIL import ImageDraw
 
 FPS = 25
 
@@ -124,8 +125,6 @@ def render(episode):
         x = int(position["x"])
         y = int(position["y"])
 
-        x = int(position["x"] - transformed.width / 2)
-        y = int(position["y"] - transformed.height / 2)
         frame.paste(transformed, (x, y), transformed)
 
         frame_path = os.path.join(FRAMES_DIR, f"frame_{frame_number:05d}.png")
