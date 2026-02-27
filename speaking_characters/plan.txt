@@ -16,10 +16,14 @@ FFmpeg filter_complex dynamique
 Commands:
 
 srt to bloc texte + temps exact:
-python srt_to_visemes.py episodes/srt/episode-1.srt episodes/visemes-timeline/episode-1.json visemes-mapping.json
+python3 srt_to_visemes.py episodes/srt/episode-1.srt episodes/visemes-timeline/episode-1.json visemes-mapping.json
+
+ass to bloc texte
+python3 ass_to_visemes.py episodes/ass/episode-test-mouth-lion.ass episodes/visemes-timeline/test-mouth-lion.json visemes-mapping.json
+
 
 génération de la vidéo avec les personnages qui parlent:
-python render_episode.py --episode episode-test-mouth-lion
+python3 render_episode.py --episode episode-test-mouth-lion
 
 TO DO
 Corriger le problème d'offset
