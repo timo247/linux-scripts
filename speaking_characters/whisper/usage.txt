@@ -8,6 +8,7 @@ docker build --no-cache -t whisperx-lipsync .
 
 
 Run the docker image:
+cd ../episodes/audios &&
 docker run --runtime=nvidia --gpus all -it \
   -v $(pwd):/app \
   whisperx-gpu \
