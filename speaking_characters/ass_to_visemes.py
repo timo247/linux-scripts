@@ -8,7 +8,15 @@ from dataclasses import dataclass
 from typing import List, Tuple
 
 # --------------------------------------------------
-# DATA STRUCTURES
+# CONFIG ANIMATION
+# --------------------------------------------------
+
+VISEME_OFFSET = -0.04   # anticipation visuelle (40ms)
+MICRO_PAUSE = 0.03      # durée fermeture fin syllabe
+MIN_DURATION = 0.05     # sécurité
+
+# --------------------------------------------------
+# DATA STRUCTURE
 # --------------------------------------------------
 
 @dataclass
@@ -19,7 +27,7 @@ class VisemeEvent:
 
 
 # --------------------------------------------------
-# LOAD VISEME RULES FROM JSON
+# LOAD VISEME RULES
 # --------------------------------------------------
 
 def load_viseme_rules(path: str) -> Tuple[List[Tuple[re.Pattern, str]], str]:
@@ -30,31 +38,23 @@ def load_viseme_rules(path: str) -> Tuple[List[Tuple[re.Pattern, str]], str]:
         for rule in data["rules"]
     ]
 
-    default_viseme = data.get("default", "NEUTRAL")
+    default_viseme = data.get("default", "CLOSED")
 
     return compiled_rules, default_viseme
 
 
 # --------------------------------------------------
-# ASS TIME CONVERSION
+# ASS TIME
 # --------------------------------------------------
 
 def ass_time_to_seconds(t: str) -> float:
-    """
-    Convertit un timestamp ASS (h:mm:ss.cc) en secondes
-    """
     h, m, s = t.split(":")
     s, cs = s.split(".")
-    return (
-        int(h) * 3600
-        + int(m) * 60
-        + int(s)
-        + int(cs) / 100
-    )
+    return int(h) * 3600 + int(m) * 60 + int(s) + int(cs) / 100
 
 
 # --------------------------------------------------
-# ASS PARSER (karaoke {\k})
+# ASS PARSER (karaoke)
 # --------------------------------------------------
 
 def parse_ass_karaoke(file_path: str):
@@ -67,17 +67,18 @@ def parse_ass_karaoke(file_path: str):
 
     for line in dialogue_lines:
         parts = line.split(",", 9)
-
         start_time = ass_time_to_seconds(parts[1])
         text = parts[9]
 
-        # extrait {\\kXX}texte
         pattern = re.findall(r"{\\k(\d+)}([^{}]+)", text)
 
         current_time = start_time
 
         for duration_cs, syllable in pattern:
             duration = int(duration_cs) / 100.0
+
+            if duration < MIN_DURATION:
+                continue
 
             timeline.append({
                 "start": current_time,
@@ -91,26 +92,17 @@ def parse_ass_karaoke(file_path: str):
 
 
 # --------------------------------------------------
-# TEXT → VISEME
+# TEXT → VISEME (FIRST MATCH WINS)
 # --------------------------------------------------
 
-def text_to_visemes(text: str, rules, default_viseme: str) -> List[str]:
-    """
-    Applique les règles regex pour trouver le viseme correspondant.
-    Retourne une liste (même si généralement 1 seul viseme).
-    """
+def text_to_viseme(text: str, rules, default_viseme: str) -> str:
     text = text.lower()
-
-    matched_visemes = []
 
     for pattern, viseme in rules:
         if pattern.search(text):
-            matched_visemes.append(viseme)
+            return viseme
 
-    if not matched_visemes:
-        return [default_viseme]
-
-    return matched_visemes
+    return default_viseme
 
 
 # --------------------------------------------------
@@ -147,22 +139,44 @@ def main():
     args = parser.parse_args()
 
     rules, default_viseme = load_viseme_rules(args.viseme_config)
-
     raw_segments = parse_ass_karaoke(args.input_ass)
 
     timeline = []
 
     for segment in raw_segments:
-        visemes = text_to_visemes(segment["text"], rules, default_viseme)
 
-        # on prend le premier viseme correspondant
-        viseme_name = visemes[0] if visemes else default_viseme
+        base_start = segment["start"]
+        base_end = segment["end"]
 
+        # anticipation
+        start = max(0, base_start + VISEME_OFFSET)
+        end = base_end
+
+        viseme = text_to_viseme(segment["text"], rules, default_viseme)
+
+        total_duration = end - start
+        if total_duration <= 0:
+            continue
+
+        # fermeture en fin de syllabe
+        close_duration = min(MICRO_PAUSE, total_duration * 0.4)
+        main_end = end - close_duration
+
+        # viseme principal
         timeline.append(
             VisemeEvent(
-                start=segment["start"],
-                end=segment["end"],
-                viseme=viseme_name
+                start,
+                main_end,
+                viseme
+            )
+        )
+
+        # fermeture systématique
+        timeline.append(
+            VisemeEvent(
+                main_end,
+                end,
+                "CLOSED"
             )
         )
 
