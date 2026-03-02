@@ -4,6 +4,7 @@
 
     { "pattern": "ou", "viseme": "O" },
     { "pattern": "eau|au", "viseme": "O" },
+    { "pattern": "oi", "viseme": "A" },
     { "pattern": "[oô]", "viseme": "O" },
 
     { "pattern": "(ai|ei|é|è|ê|ë|eu|œ|er|ez)", "viseme": "E" },
@@ -17,7 +18,9 @@
 
     { "pattern": "l", "viseme": "L" },
 
-    { "pattern": "[bcdfghjkmnpqrstvwxz]", "viseme": "CONS" }
+    { "pattern": "bmp", "viseme": "CLOSED" },
+
+    { "pattern": "[cdfghjknqrstvwxz]", "viseme": "CONS" }
   ],
   "default": "CLOSED"
 }

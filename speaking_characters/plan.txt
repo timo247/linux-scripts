@@ -13,11 +13,12 @@ Commands:
 ass to bloc texte
 python3 ass_to_visemes.py episodes/ass/episode-test-mouth-lion.ass episodes/visemes-timeline/episode-test-mouth-lion.json visemes-mapping.json
 
+json_speach to bloc de texte:
+python3 json_speach_to_viseme_timeline.py episodes/json-speaches/episode-test-mouth-lion.json episodes/visemes-timeline/episode-test-mouth-lion.json visemes-mapping.json
 
 génération de la vidéo avec les personnages qui parlent:
 python3 render_episode.py --episode episode-test-mouth-lion
 
 TO DO
-créer un script qui génère les visemes à partir du fichier json de speaches
-faire ene sorte que la bouche neutral soit utilisée par défaut. 
-regarder comment réduire le retard de la bouche qui parle et s'assurer que les silences soient respectés. 
+faire ene sorte que la bouche neutral soit utilisée à la seconde 00. 
+tester plusieurs personnages.
