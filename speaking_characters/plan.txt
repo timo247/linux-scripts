@@ -20,5 +20,4 @@ génération de la vidéo avec les personnages qui parlent:
 python3 render_episode.py --episode episode-test-mouth-lion
 
 TO DO
-faire ene sorte que la bouche neutral soit utilisée à la seconde 00. 
-tester plusieurs personnages.
+tester le script des yeux de chatgpt, sauvegarder les versions actuelles plusieurs personnages.

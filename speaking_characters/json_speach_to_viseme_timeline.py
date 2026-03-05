@@ -50,7 +50,7 @@ def normalize_word(word: str) -> str:
     return word
 
 # --------------------------------------------------
-# VISEME PAR MOT (plus précis)
+# VISEME PAR MOT
 # --------------------------------------------------
 
 def text_to_viseme(text: str, rules, default_viseme: str) -> str:
@@ -146,29 +146,48 @@ def main():
     rules, default_viseme = load_viseme_rules(args.viseme_config)
     raw_segments = parse_json_segments(args.input_json)
 
-    timeline = []
+    timeline: List[VisemeEvent] = []
     previous_end = None
 
+    # --------------------------------------------------
+    # Force bouche CLOSED dès 00.000
+    # --------------------------------------------------
+    if raw_segments:
+        first_word_start = max(0.0, raw_segments[0]["start"] + VISEME_OFFSET)
+
+        if first_word_start > 0:
+            timeline.append(
+                VisemeEvent(
+                    0.0,
+                    first_word_start,
+                    "CLOSED"
+                )
+            )
+            previous_end = first_word_start
+        else:
+            previous_end = 0.0
+
+    # --------------------------------------------------
+    # Génération timeline principale
+    # --------------------------------------------------
     for segment in raw_segments:
         base_start = segment["start"]
         base_end = segment["end"]
 
-        # --------------------------------------------------
-        # Gestion des silences réels entre mots
-        # --------------------------------------------------
+        start = max(0.0, base_start + VISEME_OFFSET)
+        end = base_end
+
+        # Gestion silence réel entre mots
         if previous_end is not None:
-            gap = base_start - previous_end
+            gap = start - previous_end
             if gap > SILENCE_THRESHOLD:
                 timeline.append(
                     VisemeEvent(
                         previous_end,
-                        base_start,
+                        start,
                         "CLOSED"
                     )
                 )
-
-        start = max(0, base_start + VISEME_OFFSET)
-        end = base_end
 
         viseme = text_to_viseme(segment["text"], rules, default_viseme)
 
@@ -194,6 +213,15 @@ def main():
     # --------------------------------------------------
     timeline = merge_consecutive_visemes(timeline)
 
+    # --------------------------------------------------
+    # Sécurité finale : garantir start = 0.000
+    # --------------------------------------------------
+    if timeline and timeline[0].start > 0:
+        timeline.insert(0, VisemeEvent(0.0, timeline[0].start, "CLOSED"))
+
+    # --------------------------------------------------
+    # Export JSON
+    # --------------------------------------------------
     output = [
         {
             "start": round(event.start, 3),
