@@ -80,14 +80,12 @@ def generate_eye_timeline(duration, eyes_config):
             })
             break
 
-        # OPEN phase
         timeline.append({
             "start": current_time,
             "end": blink_start,
             "eye": "OPEN"
         })
 
-        # Blink breakdown
         half_phase = blink_duration * 0.3
         closed_phase = blink_duration * 0.4
 
@@ -118,7 +116,7 @@ def generate_eye_timeline(duration, eyes_config):
 # MAIN RENDER
 # ======================
 
-def render(episode):
+def render(episode, character):
 
     BASE_IMAGE_PATH = f"episodes/images/{episode}.png"
     TIMELINE_PATH = f"episodes/visemes-timeline/{episode}.json"
@@ -129,7 +127,10 @@ def render(episode):
     OUTPUT_VIDEO = f"{OUTPUT_DIR}/{episode}.mp4"
     FRAMES_DIR = f"tmp_frames_{episode}"
 
-    print("Loading data...")
+    print("=================================")
+    print(f"Rendering episode : {episode}")
+    print(f"Character         : {character}")
+    print("=================================")
 
     timeline = load_json(TIMELINE_PATH)
     position = load_json(POSITION_PATH)
@@ -142,16 +143,13 @@ def render(episode):
     ensure_dir(FRAMES_DIR)
     ensure_dir(OUTPUT_DIR)
 
-    # Emotions
     emotion_1 = position.get("emotion_1", "HAPPY")
     emotion_2 = position.get("emotion_2", emotion_1)
     transition_time = position.get("emotion_transition_time", float("inf"))
 
-    # Generate procedural eye animation
     eyes_config = position.get("eyes", {})
     eye_timeline = generate_eye_timeline(total_duration, eyes_config)
 
-    # Caches
     mouth_cache = {}
     eye_cache = {}
 
@@ -159,7 +157,6 @@ def render(episode):
 
         current_time = frame_number / FPS
 
-        # Emotion selection
         if current_time < transition_time:
             current_emotion = emotion_1
         else:
@@ -169,7 +166,7 @@ def render(episode):
         # MOUTH
         # ======================
 
-        mouths_dir = f"characters/lion/mouths/{current_emotion}"
+        mouths_dir = f"characters/{character}/mouths/{current_emotion}"
 
         current_viseme = "CLOSED"
         for segment in timeline:
@@ -178,6 +175,7 @@ def render(episode):
                 break
 
         mouth_cache_key = f"{current_emotion}_{current_viseme}"
+
         if mouth_cache_key not in mouth_cache:
             mouth_cache[mouth_cache_key] = load_mouth_image(current_viseme, mouths_dir)
 
@@ -193,6 +191,7 @@ def render(episode):
             ),
             Image.LANCZOS
         )
+
         mouth_transformed = mouth_transformed.rotate(
             mouth_cfg.get("rotation", 0),
             expand=True
@@ -202,7 +201,7 @@ def render(episode):
         # EYES
         # ======================
 
-        eyes_dir = f"characters/lion/eyes/{current_emotion}"
+        eyes_dir = f"characters/{character}/eyes/{current_emotion}"
 
         current_eye_state = "OPEN"
         for segment in eye_timeline:
@@ -211,6 +210,7 @@ def render(episode):
                 break
 
         eye_cache_key = f"{current_emotion}_{current_eye_state}"
+
         if eye_cache_key not in eye_cache:
             eye_cache[eye_cache_key] = load_eye_image(current_eye_state, eyes_dir)
 
@@ -226,6 +226,7 @@ def render(episode):
             ),
             Image.LANCZOS
         )
+
         eye_transformed = eye_transformed.rotate(
             eyes_cfg.get("rotation", 0),
             expand=True
@@ -237,14 +238,12 @@ def render(episode):
 
         frame = base_image.copy()
 
-        # Eyes first
         frame.paste(
             eye_transformed,
             (int(eyes_cfg["x"]), int(eyes_cfg["y"])),
             eye_transformed
         )
 
-        # Mouth after
         frame.paste(
             mouth_transformed,
             (int(mouth_cfg["x"]), int(mouth_cfg["y"])),
@@ -256,10 +255,6 @@ def render(episode):
 
         if frame_number % 50 == 0:
             print(f"Rendered frame {frame_number}/{total_frames}")
-
-    # ======================
-    # FFMPEG
-    # ======================
 
     print("Encoding video with ffmpeg...")
 
@@ -291,7 +286,10 @@ def render(episode):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
+
     parser.add_argument("--episode", required=True)
+    parser.add_argument("--character", required=True)
+
     args = parser.parse_args()
 
-    render(args.episode)
+    render(args.episode, args.character)

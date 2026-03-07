@@ -17,7 +17,9 @@ json_speach to bloc de texte:
 python3 json_speach_to_viseme_timeline.py episodes/json-speaches/episode-test-mouth-lion.json episodes/visemes-timeline/episode-test-mouth-lion.json visemes-mapping.json
 
 génération de la vidéo avec les personnages qui parlent:
-python3 render_episode.py --episode episode-test-mouth-lion
+ython3 render_episode.py --episode episode-test-antilope --character antilope
 
 TO DO
-tester le script des yeux de chatgpt, sauvegarder les versions actuelles plusieurs personnages.
+créer les émotions unhappy pour l'antilope et tester
+ajouter une logique de position pour différencier les yeux
+tester l'animation avec l'antilope
