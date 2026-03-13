@@ -11,6 +11,7 @@ from PIL import Image
 
 FPS = 25
 
+
 # ======================
 # UTILS
 # ======================
@@ -36,18 +37,39 @@ def ensure_dir(path):
 # IMAGE LOADERS
 # ======================
 
-def load_mouth_image(viseme, mouths_dir):
-    path = os.path.join(mouths_dir, f"{viseme}.png")
+def load_mouth_image(viseme, base_path, emotion):
+
+    path = os.path.join(base_path, "mouths", emotion, f"{viseme}.png")
+
     if not os.path.exists(path):
         raise ValueError(f"Viseme image not found: {path}")
+
     return Image.open(path).convert("RGBA")
 
 
-def load_eye_image(state, eyes_dir):
-    path = os.path.join(eyes_dir, f"{state}.png")
-    if not os.path.exists(path):
-        raise ValueError(f"Eye image not found: {path}")
-    return Image.open(path).convert("RGBA")
+def load_eye_image(state, base_path, emotion):
+
+    eyes_root = os.path.join(base_path, "eyes")
+
+    # 1️⃣ essayer avec émotion
+    emotion_path = os.path.join(eyes_root, emotion, f"{state}.png")
+
+    if os.path.isfile(emotion_path):
+        return Image.open(emotion_path).convert("RGBA")
+
+    # 2️⃣ fallback neutre
+    neutral_path = os.path.join(eyes_root, f"{state}.png")
+
+    if os.path.isfile(neutral_path):
+        return Image.open(neutral_path).convert("RGBA")
+
+    # 3️⃣ erreur claire
+    raise ValueError(
+        f"Eye image not found for emotion '{emotion}' and state '{state}'.\n"
+        f"Tried:\n"
+        f"{emotion_path}\n"
+        f"{neutral_path}"
+    )
 
 
 # ======================
@@ -116,12 +138,14 @@ def generate_eye_timeline(duration, eyes_config):
 # MAIN RENDER
 # ======================
 
-def render(episode, character):
+def render(episode, character, position):
 
     BASE_IMAGE_PATH = f"episodes/images/{episode}.png"
     TIMELINE_PATH = f"episodes/visemes-timeline/{episode}.json"
     POSITION_PATH = f"episodes/positions-mapping/{episode}.json"
     AUDIO_PATH = f"episodes/audios/{episode}.mp3"
+
+    CHARACTER_BASE = f"characters/{character}/positions/{position}"
 
     OUTPUT_DIR = "episodes/videos"
     OUTPUT_VIDEO = f"{OUTPUT_DIR}/{episode}.mp4"
@@ -130,10 +154,11 @@ def render(episode, character):
     print("=================================")
     print(f"Rendering episode : {episode}")
     print(f"Character         : {character}")
+    print(f"Position          : {position}")
     print("=================================")
 
     timeline = load_json(TIMELINE_PATH)
-    position = load_json(POSITION_PATH)
+    position_cfg = load_json(POSITION_PATH)
 
     base_image = Image.open(BASE_IMAGE_PATH).convert("RGBA")
 
@@ -143,11 +168,11 @@ def render(episode, character):
     ensure_dir(FRAMES_DIR)
     ensure_dir(OUTPUT_DIR)
 
-    emotion_1 = position.get("emotion_1", "HAPPY")
-    emotion_2 = position.get("emotion_2", emotion_1)
-    transition_time = position.get("emotion_transition_time", float("inf"))
+    emotion_1 = position_cfg.get("emotion_1", "HAPPY")
+    emotion_2 = position_cfg.get("emotion_2", emotion_1)
+    transition_time = position_cfg.get("emotion_transition_time", float("inf"))
 
-    eyes_config = position.get("eyes", {})
+    eyes_config = position_cfg.get("eyes", {})
     eye_timeline = generate_eye_timeline(total_duration, eyes_config)
 
     mouth_cache = {}
@@ -166,24 +191,28 @@ def render(episode, character):
         # MOUTH
         # ======================
 
-        mouths_dir = f"characters/{character}/mouths/{current_emotion}"
-
         current_viseme = "CLOSED"
+
         for segment in timeline:
             if segment["start"] <= current_time < segment["end"]:
                 current_viseme = segment["viseme"]
                 break
 
-        mouth_cache_key = f"{current_emotion}_{current_viseme}"
+        mouth_cache_key = f"{position}_{current_emotion}_{current_viseme}"
 
         if mouth_cache_key not in mouth_cache:
-            mouth_cache[mouth_cache_key] = load_mouth_image(current_viseme, mouths_dir)
+            mouth_cache[mouth_cache_key] = load_mouth_image(
+                current_viseme,
+                CHARACTER_BASE,
+                current_emotion
+            )
 
         mouth_img = mouth_cache[mouth_cache_key]
 
-        mouth_cfg = position["mouth"]
+        mouth_cfg = position_cfg["mouth"]
 
         mouth_transformed = mouth_img.copy()
+
         mouth_transformed = mouth_transformed.resize(
             (
                 int(mouth_transformed.width * mouth_cfg.get("scale", 1)),
@@ -201,24 +230,28 @@ def render(episode, character):
         # EYES
         # ======================
 
-        eyes_dir = f"characters/{character}/eyes/{current_emotion}"
-
         current_eye_state = "OPEN"
+
         for segment in eye_timeline:
             if segment["start"] <= current_time < segment["end"]:
                 current_eye_state = segment["eye"]
                 break
 
-        eye_cache_key = f"{current_emotion}_{current_eye_state}"
+        eye_cache_key = f"{position}_{current_emotion}_{current_eye_state}"
 
         if eye_cache_key not in eye_cache:
-            eye_cache[eye_cache_key] = load_eye_image(current_eye_state, eyes_dir)
+            eye_cache[eye_cache_key] = load_eye_image(
+                current_eye_state,
+                CHARACTER_BASE,
+                current_emotion
+            )
 
         eye_img = eye_cache[eye_cache_key]
 
-        eyes_cfg = position["eyes"]
+        eyes_cfg = position_cfg["eyes"]
 
         eye_transformed = eye_img.copy()
+
         eye_transformed = eye_transformed.resize(
             (
                 int(eye_transformed.width * eyes_cfg.get("scale", 1)),
@@ -289,7 +322,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--episode", required=True)
     parser.add_argument("--character", required=True)
+    parser.add_argument("--position", required=True)
 
     args = parser.parse_args()
 
-    render(args.episode, args.character)
+    render(args.episode, args.character, args.position)

@@ -17,9 +17,12 @@ json_speach to bloc de texte:
 python3 json_speach_to_viseme_timeline.py episodes/json-speaches/episode-test-mouth-lion.json episodes/visemes-timeline/episode-test-mouth-lion.json visemes-mapping.json
 
 génération de la vidéo avec les personnages qui parlent:
-ython3 render_episode.py --episode episode-test-antilope --character antilope
+python3 render_episode.py --episode episode-test-antilope --character antilope --position 2
+python3 render_episode.py --episode episode-test-antilope --character antilope
+
+
+python3 render_episode.py --episode episode-test-mouth-lion
 
 TO DO
-créer les émotions unhappy pour l'antilope et tester
-ajouter une logique de position pour différencier les yeux
-tester l'animation avec l'antilope
+tester la video de antilope pos 2 et pousser sur git
+tester les bouches avec un px de plus large sur le stroke

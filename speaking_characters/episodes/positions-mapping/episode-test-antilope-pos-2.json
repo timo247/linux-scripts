@@ -1,13 +1,13 @@
 {
   "mouth": {
-    "x": 963,
-    "y": 448,
+    "x": 1162,
+    "y": 624,
     "scale": 0.4,
     "rotation": 0
   },
   "eyes": {
-    "x": 972,
-    "y": 324,
+    "x": 1188,
+    "y": 522,
     "scale": 1,
     "rotation": 0,
     "min_blink_interval": 3.0,
