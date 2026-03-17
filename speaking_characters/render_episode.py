@@ -49,27 +49,19 @@ def load_mouth_image(viseme, base_path, emotion):
 
 def load_eye_image(state, base_path, emotion):
 
-    eyes_root = os.path.join(base_path, "eyes")
+    # essayer avec émotion
+    emotion_path = os.path.join(base_path, "eyes", emotion, f"{state}.png")
 
-    # 1️⃣ essayer avec émotion
-    emotion_path = os.path.join(eyes_root, emotion, f"{state}.png")
-
-    if os.path.isfile(emotion_path):
+    if os.path.exists(emotion_path):
         return Image.open(emotion_path).convert("RGBA")
 
-    # 2️⃣ fallback neutre
-    neutral_path = os.path.join(eyes_root, f"{state}.png")
+    # fallback sans émotion
+    neutral_path = os.path.join(base_path, "eyes", f"{state}.png")
 
-    if os.path.isfile(neutral_path):
+    if os.path.exists(neutral_path):
         return Image.open(neutral_path).convert("RGBA")
 
-    # 3️⃣ erreur claire
-    raise ValueError(
-        f"Eye image not found for emotion '{emotion}' and state '{state}'.\n"
-        f"Tried:\n"
-        f"{emotion_path}\n"
-        f"{neutral_path}"
-    )
+    raise ValueError(f"Eye image not found: {emotion_path} or {neutral_path}")
 
 
 # ======================
@@ -198,7 +190,7 @@ def render(episode, character, position):
                 current_viseme = segment["viseme"]
                 break
 
-        mouth_cache_key = f"{position}_{current_emotion}_{current_viseme}"
+        mouth_cache_key = f"{current_emotion}_{current_viseme}"
 
         if mouth_cache_key not in mouth_cache:
             mouth_cache[mouth_cache_key] = load_mouth_image(
@@ -237,7 +229,7 @@ def render(episode, character, position):
                 current_eye_state = segment["eye"]
                 break
 
-        eye_cache_key = f"{position}_{current_emotion}_{current_eye_state}"
+        eye_cache_key = f"{current_emotion}_{current_eye_state}"
 
         if eye_cache_key not in eye_cache:
             eye_cache[eye_cache_key] = load_eye_image(
