@@ -24,5 +24,5 @@ python3 render_episode.py --episode episode-test-antilope --character antilope
 python3 render_episode.py --episode episode-test-mouth-lion
 
 TO DO
-tester la video de antilope pos 2 et pousser sur git
-tester les bouches avec un px de plus large sur le stroke
+tester antilope pos 2 avec la bouche l'autre coté
+Implémenter une logique avec deux personnages. -> les personnages sont définis dans le json pos mapping.
