@@ -6,7 +6,6 @@ import shutil
 import subprocess
 import argparse
 import random
-from pathlib import Path
 from PIL import Image
 
 FPS = 25
@@ -21,8 +20,12 @@ def load_json(path):
         return json.load(f)
 
 
-def get_total_duration(timeline):
-    return max(segment["end"] for segment in timeline)
+def get_total_duration_multi(timelines):
+    max_end = 0
+    for timeline in timelines.values():
+        for seg in timeline:
+            max_end = max(max_end, seg["end"])
+    return max_end
 
 
 def time_to_frame(t):
@@ -38,12 +41,9 @@ def ensure_dir(path):
 # ======================
 
 def load_mouth_image(viseme, base_path, emotion):
-
     path = os.path.join(base_path, "mouths", emotion, f"{viseme}.png")
-
     if not os.path.exists(path):
         raise ValueError(f"Viseme image not found: {path}")
-
     return Image.open(path).convert("RGBA")
 
 
@@ -51,98 +51,83 @@ def load_eye_image(state, base_path, emotion):
 
     eyes_root = os.path.join(base_path, "eyes")
 
-    # 1️⃣ essayer avec émotion
     emotion_path = os.path.join(eyes_root, emotion, f"{state}.png")
-
     if os.path.isfile(emotion_path):
         return Image.open(emotion_path).convert("RGBA")
 
-    # 2️⃣ fallback neutre
     neutral_path = os.path.join(eyes_root, f"{state}.png")
-
     if os.path.isfile(neutral_path):
         return Image.open(neutral_path).convert("RGBA")
 
-    raise ValueError(
-        f"Eye image not found for emotion '{emotion}' and state '{state}'.\n"
-        f"Tried:\n{emotion_path}\n{neutral_path}"
-    )
+    raise ValueError(f"Eye image not found: {emotion_path} / {neutral_path}")
 
 
 # ======================
-# EYE TIMELINE GENERATOR
+# EYE TIMELINE
 # ======================
 
-def generate_eye_timeline(duration, eyes_config):
-
-    min_interval = eyes_config.get("min_blink_interval", 3.0)
-    max_interval = eyes_config.get("max_blink_interval", 5.5)
-    min_duration = eyes_config.get("min_blink_duration", 0.18)
-    max_duration = eyes_config.get("max_blink_duration", 0.28)
+def generate_eye_timeline(duration, cfg):
 
     timeline = []
     current_time = 0.0
 
     while current_time < duration:
 
-        interval = random.uniform(min_interval, max_interval)
-        blink_duration = random.uniform(min_duration, max_duration)
+        interval = random.uniform(cfg.get("min_blink_interval", 3.0),
+                                  cfg.get("max_blink_interval", 5.5))
 
-        blink_start = current_time + interval
-        blink_end = blink_start + blink_duration
+        blink_d = random.uniform(cfg.get("min_blink_duration", 0.18),
+                                cfg.get("max_blink_duration", 0.28))
 
-        if blink_start >= duration:
-            timeline.append({
-                "start": current_time,
-                "end": duration,
-                "eye": "OPEN"
-            })
+        start = current_time + interval
+        end = start + blink_d
+
+        if start >= duration:
+            timeline.append({"start": current_time, "end": duration, "eye": "OPEN"})
             break
 
-        timeline.append({
-            "start": current_time,
-            "end": blink_start,
-            "eye": "OPEN"
-        })
+        timeline.append({"start": current_time, "end": start, "eye": "OPEN"})
 
-        half_phase = blink_duration * 0.3
-        closed_phase = blink_duration * 0.4
+        half = blink_d * 0.3
+        closed = blink_d * 0.4
 
-        timeline.append({
-            "start": blink_start,
-            "end": blink_start + half_phase,
-            "eye": "HALF-OPEN"
-        })
+        timeline.append({"start": start, "end": start + half, "eye": "HALF-OPEN"})
+        timeline.append({"start": start + half, "end": start + half + closed, "eye": "CLOSED"})
+        timeline.append({"start": start + half + closed, "end": end, "eye": "HALF-OPEN"})
 
-        timeline.append({
-            "start": blink_start + half_phase,
-            "end": blink_start + half_phase + closed_phase,
-            "eye": "CLOSED"
-        })
-
-        timeline.append({
-            "start": blink_start + half_phase + closed_phase,
-            "end": blink_end,
-            "eye": "HALF-OPEN"
-        })
-
-        current_time = blink_end
+        current_time = end
 
     return timeline
+
+
+# ======================
+# LOOKUP HELPERS
+# ======================
+
+def get_current_viseme(timeline, t):
+    for seg in timeline:
+        if seg["start"] <= t < seg["end"]:
+            return seg["viseme"]
+    return "CLOSED"
+
+
+def get_current_eye(timeline, t):
+    for seg in timeline:
+        if seg["start"] <= t < seg["end"]:
+            return seg["eye"]
+    return "OPEN"
 
 
 # ======================
 # MAIN RENDER
 # ======================
 
-def render(episode, character, position):
+def render(episode):
 
     BASE_IMAGE_PATH = f"episodes/images/{episode}.png"
     TIMELINE_PATH = f"episodes/visemes-timeline/{episode}.json"
     POSITION_PATH = f"episodes/positions-mapping/{episode}.json"
     AUDIO_PATH = f"episodes/audios/{episode}.mp3"
-
-    CHARACTER_BASE = f"characters/{character}/positions/{position}"
 
     OUTPUT_DIR = "episodes/videos"
     OUTPUT_VIDEO = f"{OUTPUT_DIR}/{episode}.mp4"
@@ -150,154 +135,147 @@ def render(episode, character, position):
 
     print("=================================")
     print(f"Rendering episode : {episode}")
-    print(f"Character         : {character}")
-    print(f"Position          : {position}")
     print("=================================")
 
-    timeline = load_json(TIMELINE_PATH)
-    position_cfg = load_json(POSITION_PATH)
+    timelines = load_json(TIMELINE_PATH)  # dict speaker -> timeline
+    config = load_json(POSITION_PATH)
+
+    characters = config["characters"]
 
     base_image = Image.open(BASE_IMAGE_PATH).convert("RGBA")
 
-    total_duration = get_total_duration(timeline)
+    total_duration = get_total_duration_multi(timelines)
     total_frames = time_to_frame(total_duration)
 
     ensure_dir(FRAMES_DIR)
     ensure_dir(OUTPUT_DIR)
 
-    emotion_1 = position_cfg.get("emotion_1", "HAPPY")
-    emotion_2 = position_cfg.get("emotion_2", emotion_1)
-    transition_time = position_cfg.get("emotion_transition_time", float("inf"))
-
-    eyes_config = position_cfg.get("eyes", {})
-    eye_timeline = generate_eye_timeline(total_duration, eyes_config)
-
+    # caches
     mouth_cache = {}
     eye_cache = {}
+
+    # eye timelines par personnage
+    eye_timelines = {}
+
+    for char in characters:
+        eye_timelines[char["name"]] = generate_eye_timeline(
+            total_duration,
+            char.get("eyes", {})
+        )
+
+    # ======================
+    # FRAME LOOP
+    # ======================
 
     for frame_number in range(total_frames):
 
         current_time = frame_number / FPS
-
-        current_emotion = emotion_1 if current_time < transition_time else emotion_2
-
-        # ======================
-        # MOUTH
-        # ======================
-
-        current_viseme = "CLOSED"
-
-        for segment in timeline:
-            if segment["start"] <= current_time < segment["end"]:
-                current_viseme = segment["viseme"]
-                break
-
-        mouth_cache_key = f"{position}_{current_emotion}_{current_viseme}"
-
-        if mouth_cache_key not in mouth_cache:
-            mouth_cache[mouth_cache_key] = load_mouth_image(
-                current_viseme,
-                CHARACTER_BASE,
-                current_emotion
-            )
-
-        mouth_img = mouth_cache[mouth_cache_key]
-        mouth_cfg = position_cfg["mouth"]
-
-        mouth_transformed = mouth_img.copy()
-
-        # SCALE
-        mouth_transformed = mouth_transformed.resize(
-            (
-                int(mouth_transformed.width * mouth_cfg.get("scale", 1)),
-                int(mouth_transformed.height * mouth_cfg.get("scale", 1))
-            ),
-            Image.LANCZOS
-        )
-
-        # FLIP HORIZONTAL
-        if mouth_cfg.get("flip_x", False):
-            mouth_transformed = mouth_transformed.transpose(Image.FLIP_LEFT_RIGHT)
-
-        # ROTATION
-        mouth_transformed = mouth_transformed.rotate(
-            mouth_cfg.get("rotation", 0),
-            expand=True
-        )
-
-        # ======================
-        # EYES
-        # ======================
-
-        current_eye_state = "OPEN"
-
-        for segment in eye_timeline:
-            if segment["start"] <= current_time < segment["end"]:
-                current_eye_state = segment["eye"]
-                break
-
-        eye_cache_key = f"{position}_{current_emotion}_{current_eye_state}"
-
-        if eye_cache_key not in eye_cache:
-            eye_cache[eye_cache_key] = load_eye_image(
-                current_eye_state,
-                CHARACTER_BASE,
-                current_emotion
-            )
-
-        eye_img = eye_cache[eye_cache_key]
-        eyes_cfg = position_cfg["eyes"]
-
-        eye_transformed = eye_img.copy()
-
-        # SCALE
-        eye_transformed = eye_transformed.resize(
-            (
-                int(eye_transformed.width * eyes_cfg.get("scale", 1)),
-                int(eye_transformed.height * eyes_cfg.get("scale", 1))
-            ),
-            Image.LANCZOS
-        )
-
-        # FLIP HORIZONTAL
-        if eyes_cfg.get("flip_x", False):
-            eye_transformed = eye_transformed.transpose(Image.FLIP_LEFT_RIGHT)
-
-        # ROTATION
-        eye_transformed = eye_transformed.rotate(
-            eyes_cfg.get("rotation", 0),
-            expand=True
-        )
-
-        # ======================
-        # COMPOSITING
-        # ======================
-
         frame = base_image.copy()
 
-        frame.paste(
-            eye_transformed,
-            (int(eyes_cfg["x"]), int(eyes_cfg["y"])),
-            eye_transformed
-        )
+        for char in characters:
 
-        frame.paste(
-            mouth_transformed,
-            (int(mouth_cfg["x"]), int(mouth_cfg["y"])),
-            mouth_transformed
-        )
+            name = char["name"]
+            speaker = char["speaker"]
+            position = char["position"]
 
+            timeline = timelines.get(speaker, [])
+
+            current_viseme = get_current_viseme(timeline, current_time)
+
+            # emotion
+            emotion_1 = char.get("emotion_1", "HAPPY")
+            emotion_2 = char.get("emotion_2", emotion_1)
+            transition = char.get("emotion_transition_time", float("inf"))
+
+            current_emotion = emotion_1 if current_time < transition else emotion_2
+
+            base_path = f"characters/{name}/positions/{position}"
+
+            # ======================
+            # MOUTH
+            # ======================
+
+            mouth_key = f"{name}_{position}_{current_emotion}_{current_viseme}"
+
+            if mouth_key not in mouth_cache:
+                mouth_cache[mouth_key] = load_mouth_image(
+                    current_viseme,
+                    base_path,
+                    current_emotion
+                )
+
+            mouth_img = mouth_cache[mouth_key]
+            m_cfg = char["mouth"]
+
+            m = mouth_img.copy()
+
+            m = m.resize(
+                (int(m.width * m_cfg.get("scale", 1)),
+                 int(m.height * m_cfg.get("scale", 1))),
+                Image.LANCZOS
+            )
+
+            if m_cfg.get("flip_x", False):
+                m = m.transpose(Image.FLIP_LEFT_RIGHT)
+
+            m = m.rotate(m_cfg.get("rotation", 0), expand=True)
+
+            # ======================
+            # EYES
+            # ======================
+
+            eye_state = get_current_eye(
+                eye_timelines[name],
+                current_time
+            )
+
+            eye_key = f"{name}_{position}_{current_emotion}_{eye_state}"
+
+            if eye_key not in eye_cache:
+                eye_cache[eye_key] = load_eye_image(
+                    eye_state,
+                    base_path,
+                    current_emotion
+                )
+
+            eye_img = eye_cache[eye_key]
+            e_cfg = char["eyes"]
+
+            e = eye_img.copy()
+
+            e = e.resize(
+                (int(e.width * e_cfg.get("scale", 1)),
+                 int(e.height * e_cfg.get("scale", 1))),
+                Image.LANCZOS
+            )
+
+            if e_cfg.get("flip_x", False):
+                e = e.transpose(Image.FLIP_LEFT_RIGHT)
+
+            e = e.rotate(e_cfg.get("rotation", 0), expand=True)
+
+            # ======================
+            # COMPOSITING
+            # ======================
+
+            frame.paste(e, (int(e_cfg["x"]), int(e_cfg["y"])), e)
+            frame.paste(m, (int(m_cfg["x"]), int(m_cfg["y"])), m)
+
+        # save frame
         frame_path = os.path.join(FRAMES_DIR, f"frame_{frame_number:05d}.png")
         frame.save(frame_path)
 
         if frame_number % 50 == 0:
-            print(f"Rendered frame {frame_number}/{total_frames}")
+            print(f"Frame {frame_number}/{total_frames}")
 
-    print("Encoding video with ffmpeg...")
+    # ======================
+    # FFMPEG
+    # ======================
 
-    ffmpeg_cmd = [
-        "ffmpeg",
-        "-y",
+    print("Encoding video...")
+
+    subprocess.run([
+        "ffmpeg", "-y",
         "-framerate", str(FPS),
         "-i", f"{FRAMES_DIR}/frame_%05d.png",
         "-i", AUDIO_PATH,
@@ -306,16 +284,11 @@ def render(episode, character, position):
         "-c:a", "aac",
         "-shortest",
         OUTPUT_VIDEO
-    ]
+    ], check=True)
 
-    subprocess.run(ffmpeg_cmd, check=True)
+    print("Video generated:", OUTPUT_VIDEO)
 
-    print(f"Video generated: {OUTPUT_VIDEO}")
-
-    print("Cleaning temporary frames...")
     shutil.rmtree(FRAMES_DIR)
-
-    print("Done.")
 
 
 # ======================
@@ -323,11 +296,8 @@ def render(episode, character, position):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-
     parser.add_argument("--episode", required=True)
-    parser.add_argument("--character", required=True)
-    parser.add_argument("--position", required=True)
 
     args = parser.parse_args()
 
-    render(args.episode, args.character, args.position)
+    render(args.episode)
